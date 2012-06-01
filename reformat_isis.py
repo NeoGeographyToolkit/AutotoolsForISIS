@@ -12,11 +12,28 @@ def write_makefile_am_from_objs_dir( directory ):
 
     module_names = []
     directories = glob(P.join(directory,'*'))
+    all_protoprefixes = []
     for sdirectory in directories:
         if not P.isdir( sdirectory ):
             continue
         module_name = P.relpath( sdirectory, directory )
+
+        # Check for protofiles which would need to be generated
+        protoprefixes = [P.splitext(x)[0] for x in glob(P.join(sdirectory,'*.proto'))]
+        if protoprefixes:
+            operator_ = "="
+            if all_protoprefixes:
+                operator = "+="
+            print('protocol_headers %s %s' %
+                  (operator_,' '.join([P.relpath(x + ".pb.h",directory) for x in protoprefixes])), file=makefile)
+            print('protocol_sources %s %s\n' %
+                  (operator_,' '.join([P.relpath(x + ".pb.cc",directory) for x in protoprefixes])), file=makefile)
+        all_protoprefixes.extend( protoprefixes )
+
+        # Write instruction to create a shared library from the to be
+        # compiled sources.
         sourcefiles = glob(P.join(sdirectory,'*.cpp'))
+        sourcefiles.extend( [x + ".pb.cc" for x in protoprefixes] )
         if sourcefiles:
             module_names.append( module_name )
             print('lib%s_la_SOURCES = ' % module_name, file=makefile, end='')
@@ -25,10 +42,19 @@ def write_makefile_am_from_objs_dir( directory ):
                 print(' \\\n  %s' % relative_source, file=makefile, end='')
             print('\n', file=makefile)
 
-    print('lib_LTLIBRARIES =', file=makefile, end='')
+    print('lib_LTLIBRARIES   =', file=makefile, end='')
     for module in module_names:
         print(' lib%s.la' % module, file=makefile, end='')
-    print('\nincludedir = $(prefix)/include', file=makefile)
+    print('\nincludedir      = $(prefix)/include', file=makefile)
+    print('\ninclude $(top_srcdir)/config/rules.mak\n', file=makefile)
+
+    # Additional clean up for all of the auto generated files.
+    if all_protoprefixes:
+        print('include_HEADERS = $(protocol_headers)', file=makefile)
+        print('BUILT_SOURCES   = $(protocol_sources)', file=makefile)
+        print('CLEANFILES      = $(protocol_headers) $(protocol_sources)', file=makefile)
+        print('EXTRA_DIST      = %s $(protocol_headers) $(protocol_sources)' % ' '.join([P.relpath(x + ".proto",directory) for x in all_protoprefixes]), file=makefile)
+        print('include $(top_srcdir)/thirdparty/protobuf.mak', file=makefile)
 
 if __name__ == '__main__':
     parser = OptionParser()
