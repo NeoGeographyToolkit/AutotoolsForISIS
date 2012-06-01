@@ -37,8 +37,6 @@ AX_ARG_ENABLE(multi-arch,    [], [none],            [build multi-arch (universal
 AX_ARG_ENABLE(no-undefined,  no, [none],            [set -Wl,-no-undefined (might break linking)])
 AX_ARG_ENABLE(rpath,         no, [none],            [set RPATH/RUNPATH on generated binaries])
 AX_ARG_ENABLE(as-needed,     no, [none],            [set -Wl,-as-needed (might break linking)])
-AX_ARG_ENABLE(google-tcmalloc, yes, [none],            [Try to use google perftools' tcmalloc])
-AX_ARG_ENABLE(google-profiler,  no, [none],            [Try to use google perftools' cpu profiler])
 AX_ARG_ENABLE(super-inlining, no, [none],           [turn off as much inlining as possible])
 
 
@@ -57,24 +55,6 @@ elif test x"$ENABLE_ARCH_LIBS" = "x32"; then
 else
   AX_LIBDIR="lib"
   AX_OTHER_LIBDIR=""
-fi
-
-if test x"$ENABLE_GOOGLE_TCMALLOC" != x"yes"; then
-  HAVE_PKG_TCMALLOC=no:disabled
-fi
-if test x"$ENABLE_GOOGLE_PROFILER" != x"yes"; then
-  HAVE_PKG_GOOGLE_PROFILER=no:disabled
-fi
-
-AX_PKG(TCMALLOC,        [], [-ltcmalloc], [google/tcmalloc.h])
-AX_PKG(GOOGLE_PROFILER, [], [-lprofiler], [google/profiler.h])
-
-if test x"$HAVE_PKG_TCMALLOC" = x"yes"; then
-  LIBS="$LIBS $PKG_TCMALLOC_LIBS"
-fi
-
-if test x"$HAVE_PKG_GOOGLE_PROFILER" = x"yes"; then
-  LIBS="$LIBS $PKG_GOOGLE_PROFILER_LIBS"
 fi
 
 # Pass apple gcc options to build a universal binary
@@ -155,18 +135,6 @@ if test ${prefix} = NONE; then
   fi
 fi
 
-
-
-##################################################
-# distribution options
-##################################################
-
-AX_ARG_WITH(dist-license,                       [], [mk am-set], [special distribution license file to be included as the COPYING file in the distribution])
-AX_ARG_WITH(dist-license-summary,               [], [mk am-set], [special distribution license summary file to be included in the headers of source files in the distribution])
-AX_ARG_WITH(dist-config-options-default,        [], [mk am-set], [special distribution config.options.default file])
-
-
-
 ##################################################
 # handle distribution options
 ##################################################
@@ -209,16 +177,5 @@ AX_ARG_WITH(pkg-paths, [], [none], [additional search path(s) for packages])
 PKG_PATHS="$PKG_PATHS $PKG_PATHS_FROM_FILE $ENABLE_PKG_PATHS_DEFAULT"
 
 AX_LOG([using PKG_PATHS=$PKG_PATHS])
-
-
-
-##################################################
-# library options
-##################################################
-
-AX_ARG_WITH(num-threads, [4],   [cpp-int], [set the default number of processing threads for multi-threaded operations])
-AX_ARG_WITH(cache-size,  [768], [cpp-int], [set the default cache size (in MB)])
-AC_MSG_NOTICE([VW will use $NUM_THREADS THREADS by default])
-
 
 ])

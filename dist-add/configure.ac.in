@@ -14,7 +14,7 @@ AC_SUBST([abs_builddir])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 dnl Make sure that these are set so AC_PROG_CC doesn't initialize with
-dnl the defaults
+dnl the defaults. We want users to still be able to set these.
 CFLAGS="$CFLAGS"
 CXXFLAGS="$CXXFLAGS"
 
@@ -32,7 +32,12 @@ AC_LANG(C++)
 AX_COMMON_OPTIONS
 AC_CHECK_TYPE(ssize_t, int)
 
-# Tell automake what makefiles it needs to produce
+dnl Force some global compile flags upon everyone
+dnl We could also apply all over our dependences at this point ....
+AM_CPPFLAGS="-I\${abs_top_srcdir}/include -I\${abs_top_builddir}/include"
+AC_SUBST(AM_CPPFLAGS)
+
+dnl Tell automake what makefiles it needs to produce
 PYTHON_INSERT_HERE AC_CONFIG_FILES
 
 AC_OUTPUT
