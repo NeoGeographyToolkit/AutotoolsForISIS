@@ -1,0 +1,38 @@
+AC_PREREQ([2.59])
+AC_INIT([USGS Integrated Software for Imagers and Spectrometer], [3.4], [usgs], [ISIS])
+AC_CONFIG_AUX_DIR([config])
+AC_CONFIG_MACRO_DIR([m4])
+AC_CANONICAL_HOST
+AM_INIT_AUTOMAKE([nostdinc 1.8.5])
+
+dnl Fix for early autoconf that doesn't export these
+AC_SUBST([abs_top_srcdir])
+AC_SUBST([abs_top_builddir])
+AC_SUBST([abs_srcdir])
+AC_SUBST([abs_builddir])
+
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+
+dnl Make sure that these are set so AC_PROG_CC doesn't initialize with
+dnl the defaults
+CFLAGS="$CFLAGS"
+CXXFLAGS="$CXXFLAGS"
+
+dnl Disable static libraries by default
+AM_DISABLE_STATIC
+
+dnl Find the tools that we use
+AC_PROG_CC
+AC_PROG_CXX
+AC_PROG_INSTALL
+AX_PROG_AR
+AC_PROG_LIBTOOL
+AC_PROG_MAKE_SET
+AC_LANG(C++)
+AX_COMMON_OPTIONS
+AC_CHECK_TYPE(ssize_t, int)
+
+# Tell automake what makefiles it needs to produce
+PYTHON_INSERT_HERE AC_CONFIG_FILES
+
+AC_OUTPUT
