@@ -1,13 +1,24 @@
 dnl __BEGIN_LICENSE__
-dnl Copyright (C) 2006-2011 United States Government as represented by
-dnl the Administrator of the National Aeronautics and Space Administration.
-dnl All Rights Reserved.
+dnl  Copyright (c) 2006-2012, United States Government as represented by the
+dnl  Administrator of the National Aeronautics and Space Administration. All
+dnl  rights reserved.
+dnl
+dnl  The NASA Vision Workbench is licensed under the Apache License,
+dnl  Version 2.0 (the "License"); you may not use this file except in
+dnl  compliance with the License. You may obtain a copy of the License at
+dnl  http://www.apache.org/licenses/LICENSE-2.0
+dnl
+dnl  Unless required by applicable law or agreed to in writing, software
+dnl  distributed under the License is distributed on an "AS IS" BASIS,
+dnl  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+dnl  See the License for the specific language governing permissions and
+dnl  limitations under the License.
 dnl __END_LICENSE__
 
 
 m4_ifdef([_AX_FIXUPS], [], [m4_include([m4/fixups.m4])])
 
-dnl Usage: AX_PKG(<name>, <dependencies>, <libraries>, <headers>[, <relative include path>, <relative lib path>, <required-functions>, <optional-deps>])
+dnl Usage: AX_PKG(<name>, <dependencies>, <libraries>, <headers>[, <relative include path>, <relative lib path>, <required-functions>, <optional-deps>, <additional-base-paths>])
 AC_DEFUN([AX_PKG],
 [
 
@@ -79,6 +90,9 @@ AC_DEFUN([AX_PKG],
       else
         PKG_PATHS_$1="default ${PKG_PATHS}"
       fi
+
+      m4_ifval([$9],
+        [PKG_PATHS_$1="${PKG_PATHS_$1} $9"],[])
 
       HAVE_PKG_$1=no
 

@@ -13,6 +13,20 @@ AC_SUBST([abs_builddir])
 
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
+dnl LIBTOOL_VERSION=current:revision:age
+LIBTOOL_VERSION=4:0:0
+AC_SUBST(LIBTOOL_VERSION)
+
+m4_divert_text([INIT_PREPARE], [dnl
+# load the config.options
+if test -f ./config.options; then
+  AX_LOG([using config.options << EOF])
+  AX_LOG([`cat ./config.options`])
+  AX_LOG([EOF])
+  . ./config.options
+fi
+])
+
 dnl Make sure that these are set so AC_PROG_CC doesn't initialize with
 dnl the defaults. We want users to still be able to set these.
 CFLAGS="$CFLAGS"
@@ -32,10 +46,156 @@ AC_LANG(C++)
 AX_COMMON_OPTIONS
 AC_CHECK_TYPE(ssize_t, int)
 
+dnl Find the libraries that we use
+AX_PKG_PTHREADS
+
+AX_PKG(M, [], [-lm], [math.h])
+
+AX_PKG_ONE_OF(LAPACK,
+  APPLE_LAPACK,
+    [AX_PKG_APPLE(LAPACK, [], [-framework vecLib])],
+  INTEL_LAPACK,
+    [case $host_cpu in
+       ia64)   AX_PKG(INTEL_LAPACK, [PTHREADS M], [-lmkl_lapack -lmkl -lmkl_i2p -lguide], [mkl_lapack.h], [], [64],    [dgelss_]);;
+       x86_64) AX_PKG(INTEL_LAPACK, [PTHREADS M], [-lmkl_lapack -lmkl -lmkl_def -lguide], [mkl_lapack.h], [], [em64t], [dgelss_]);;
+       *)      AX_PKG(INTEL_LAPACK, [PTHREADS M], [-lmkl_lapack -lmkl -lguide],           [mkl_lapack.h], [], [32],    [dgelss_]);;
+     esac],
+  CLAPACK,
+    [AX_PKG(CLAPACK, [], [-lclapack -lblas -lf2c],     [], [], [], [dgelss_])],
+  SLAPACK,
+    [AX_PKG(SLAPACK, [], [-llapack -lblas],            [], [], [], [dgelss_])],
+  FLAPACK,
+    [AX_PKG(FLAPACK, [], [-llapack -lblas -lgfortran], [], [], [], [dgelss_])],
+  STANDALONE_LAPACK_BLAS,
+    [AX_PKG(STANDALONE_BLAS, [], [-lblas], [])
+     AX_PKG(STANDALONE_LAPACK, [STANDALONE_BLAS], [-llapack], [], [], [], [dgelss_])
+     AX_GROUP_PKG(STANDALONE_LAPACK_AND_BLAS, [STANDALONE_LAPACK STANDALONE_BLAS])],
+  STANDALONE_FLAPACK_FBLAS,
+    [AX_PKG(STANDALONE_F2C, [], [-lf2c], [])
+     AX_PKG(STANDALONE_FBLAS, [STANDALONE_F2C], [-lblas], [])
+     AX_PKG(STANDALONE_FLAPACK, [STANDALONE_FBLAS STANDALONE_F2C], [-llapack], [], [], [], [dgelss_])
+     AX_GROUP_PKG(STANDALONE_FLAPACK_FBLAS, [STANDALONE_FLAPACK STANDALONE_FBLAS STANDALONE_F2C])])
+
+AX_PKG_ONE_OF(QT,
+    ARBITRARY_QT,
+     [if test -z "$QT_ARBITRARY_MODULES" -a -z "$HAVE_PKG_ARBITRARY_MODULES"; then
+        HAVE_PKG_ARBITRARY_QT="no:Set \$QT_ARBITRARY_MODULES"
+      else
+        for module in $QT_ARBITRARY_MODULES; do
+          PKG_ARBITRARY_QT_NEEDED_HEADERS="$PKG_ARBITRARY_QT_NEEDED_HEADERS ${module}"
+        done
+        PKG_ARBITRARY_QT_CPPFLAGS="$PKG_ARBITRARY_QT_CPPFLAGS -DQT_SHARED"
+        AX_PKG(ARBITRARY_QT, [], [], [$PKG_ARBITRARY_QT_NEEDED_HEADERS])
+      fi],
+    APPLE_QMAKE_QT, [AX_PKG_APPLE(QMAKE_QT, [GL QT_QMAKE], [])],
+    LINUX_QMAKE_QT,
+     [AX_PKG(QT_QMAKE_OPENGL,  [QT_QMAKE], [], [QtOpenGL])
+      AX_PKG(QT_QMAKE_GUI,     [QT_QMAKE], [], [QLabel])
+      AX_PKG(QT_QMAKE_SQL,     [QT_QMAKE], [], [QtSql])
+      AX_PKG(QT_QMAKE_NETWORK, [QT_QMAKE], [], [QtNetwork])
+      AX_GROUP_PKG(LINUX_QMAKE_QT, [QT_QMAKE QT_QMAKE_GUI QT_QMAKE_OPENGL QT_QMAKE_SQL QT_QMAKE_NETWORK])],
+    GUESS_QT,
+     [PKG_QT_GUESS_BASE_CPPFLAGS="$PKG_QT_GUESS_BASE_CPPFLAGS -DQT_SHARED"
+      AX_PKG(QT_GUESS_BASE,   [],                           [],           [QtCore/qstring.h])
+      AX_PKG(QT_GUESS_CORE,   [QT_GUESS_BASE],              [-lQtCore],   [QtCore],   [QtCore])
+      AX_PKG(QT_GUESS_GUI,    [QT_GUESS_CORE],              [-lQtGui],    [QtGui],    [QtGui])
+      AX_PKG(QT_GUESS_SQL,    [QT_GUESS_CORE],              [-lQtSql],    [QtSql],    [QtSql])
+      AX_PKG(QT_GUESS_NETWORK,[QT_GUESS_CORE],              [-lQtNetwork],[QtNetwork],[QtNetwork])
+      AX_PKG(QT_GUESS_OPENGL, [QT_GUESS_CORE QT_GUESS_GUI], [-lQtOpenGL], [QtOpenGL], [QtOpenGL])
+      AX_GROUP_PKG(GUESS_QT,  [QT_GUESS_BASE QT_GUESS_CORE QT_GUESS_GUI QT_GUESS_SQL QT_GUESS_NETWORK QT_GUESS_OPENGL])])
+
+AX_PKG_ONE_OF(QWT,
+    APPLE_QWT, [AX_PKG_APPLE(QWT, [QT], [-framework qwt])],
+    PLAIN_QWT, [AX_PKG(PLAIN_QWT, [QT], [-lqwt], [qwt.h])],
+    SUFFX_QWT, [AX_PKG(SUFFX_QWT, [QT], [-lqwt-qt4], [qwt.h])])
+
+AX_PKG(CURL,    [], [-lcurl], [curl/curl.h])
+AX_PKG(XERCESC, [CURL], [-lxerces-c], [xercesc/dom/DOM.hpp xercesc/util/XMLString.hpp xercesc/parsers/XercesDOMParser.hpp])
+AX_PKG(Z, [], [-lz])
+AX_PKG(JPEG, [], [-ljpeg], [fstream jpeglib.h])
+AX_PKG(TIFF, [Z JPEG], [-ltiff], [tiffio.h])
+
+AX_PKG_ONE_OF(SPICE,
+    SPICE_SUBDIR, [AX_PKG(SPICE_SUBDIR, [], [-lcspice], [SpiceUsr.h SpiceZfc.h], [naif])],
+    SPICE_TOP,    [AX_PKG(SPICE_TOP,    [], [-lcspice], [SpiceUsr.h SpiceZfc.h])])
+
+# TNT_WO_SUBDIR must go first because it uses the user definition of
+# HAVE_PKG_TNT. TNT will later redefine that to yes if it finds
+# itself.
+AX_PKG(TNT_WO_SUBDIR, [], [], [tnt.h], [tnt], [], [], [], [$HAVE_PKG_TNT]) # JAMA doesn't use a path
+AX_PKG(TNT, [TNT_WO_SUBDIR], [], [tnt/tnt.h])                 # ISIS uses a path
+AX_PKG(JAMA, [TNT_WO_SUBDIR], [], [jama/jama_svd.h])
+AX_PKG(GEOS, [], [-lgeos], [geos.h])
+
+AX_PKG_ONE_OF(GSL,
+        GSL_HASBLAS, [AX_PKG(GSL_HASBLAS, [LAPACK], [-lgsl])],
+        GSL_NEEDBLAS, [AX_PKG(GSL_NEEDBLAS, [LAPACK], [-lgsl -lgslcblas])])
+
+dnl GMM should go here. I don't know what library that refers to. It
+dnl was probably GMM++.
+
+AX_PKG_ONE_OF(SUPERLU,
+    SUPERLU_STATIC, [AX_PKG(SUPERLU_STATIC, [LAPACK], [-lyou_should_override_me])],
+    SUPERLU_PLAIN,  [AX_PKG(SUPERLU_PLAIN,  [LAPACK], [-lsuperlu], [])],
+    SUPERLU_VER_30, [AX_PKG(SUPERLU_VER_30, [LAPACK], [-lsuperlu_3.0])])
+
+AX_PKG(GMM, [SUPERLU], [], [gmm/gmm.h])
+
+AX_PKG(PROTOBUF, [PTHREADS], [-lprotobuf], [google/protobuf/stubs/common.h])
+AC_PATH_TOOL( PROTOC, [protoc], [no], [$PKG_PATHS_PROTOBUF/bin$PATH_SEPARATOR$PATH])
+if test x"$PROTOC" = "xno" && test x"$HAVE_PKG_PROTOBUF" = "xyes"; then
+  AC_MSG_ERROR([cannot find protoc used by protobuf])
+fi
+
+AX_PKG_ONE_OF(KAKADU,
+    KAKADU_SPLIT,   [AX_PKG(KAKADU_SPLIT,   [], [-lkdu -lkdu_apps])],
+    KAKADU_63_JOIN, [AX_PKG(KAKADU_63_JOIN, [], [-lkdu_a63R])])
+
+AX_PKG_BOOST([BOOST_PROGRAM_OPTIONS BOOST_SYSTEM BOOST_FILESYSTEM BOOST_THREAD BOOST_GRAPH],
+  BOOST_PROGRAM_OPTIONS,
+    [AX_PKG_BOOST_LIB(PROGRAM_OPTIONS, [-lboost_program_options], [boost/program_options.hpp], [boost::program_options::options_description("Rawr");])],
+  BOOST_SYSTEM,
+    [AX_PKG_BOOST_LIB(SYSTEM,          [-lboost_system],          [boost/system/error_code.hpp], [boost::system::error_code();])],
+  BOOST_FILESYSTEM,
+    [AX_PKG_BOOST_LIB(FILESYSTEM,      [-lboost_filesystem],      [boost/filesystem/path.hpp], [boost::filesystem::path();], [$PKG_BOOST_SYSTEM_LIBS])],
+  BOOST_REGEX,
+    [AX_PKG_BOOST_LIB(REGEX,           [-lboost_regex],           [boost/regex.hpp], [boost::regex(".*");])],
+  BOOST_DATETIME,
+    [AX_PKG_BOOST_LIB(DATETIME,        [-lboost_date_time],       [boost/date_time/gregorian/gregorian_types.hpp])],
+  BOOST_THREAD,
+    [AX_PKG_BOOST_LIB(THREAD,          [-lboost_thread],          [boost/thread/thread.hpp], [boost::mutex();], [$PKG_BOOST_DATETIME_LIBS], [boost/thread/condition.hpp])],
+  BOOST_IOSTREAMS,
+    [AX_PKG_BOOST_LIB(IOSTREAMS,       [-lboost_iostreams],       [boost/iostreams/device/mapped_file.hpp], [boost::iostreams::mapped_file_source();])],
+  BOOST_GRAPH,
+    [AX_PKG_BOOST_LIB(GRAPH,           [],                        [boost/graph/adjacency_list.hpp])],
+  BOOST_MPI,
+    [AX_PKG_BOOST_LIB(MPI,             [-lboost_mpi],             [boost/mpi.hpp], [], [$PKG_OPEN_MPI_LIBS])],
+  BOOST_SERIALIZATION,
+    [AX_PKG_BOOST_LIB(SERIALIZATION,   [-lboost_serialization],   [boost/serialization/string.hpp], [], [$PKG_OPEN_MPI_LIBS $PKG_BOOST_MPI_LIBS])]
+)
+
+if test x"$HAVE_PKG_BOOST" = "xyes"; then
+  AX_PKG_BOOST_CHECK_VERSION([VW_])
+  AC_MSG_NOTICE([Using Boost header version $BOOST_VERSION, library suffix $PKG_BOOST_SAME_SUFFIX])
+fi
+
+AX_PKG(UFCONFIG, [], [-lufconfig], [CHOLMOD/UFconfig.h])
+AX_PKG(AMD, [], [-lamd], [], [], [], [], [UFCONFIG])
+AX_PKG(COLAMD, [], [-lcolamd], [], [], [], [], [UFCONFIG])
+AX_PKG(CHOLMOD_WO_SUBDIR, [AMD COLAMD LAPACK], [-DNPARTITION -DNSUPERNODAL], [cholmod.h], [CHOLMOD], [], [], [], [$HAVE_PKG_CHOLMOD]) # ISIS uses a path
+AX_PKG(CHOLMOD, [CHOLMOD_WO_SUBDIR], [-lcholmod], [CHOLMOD/cholmod.h]) # CHOLMOD internally doesn't use a path
+
+AX_PKG( ISISALLDEPS, [LAPACK QWT CURL XERCESC Z TIFF SPICE TNT JAMA GEOS GSL GMM PROTOBUF BOOST CHOLMOD], [], [], [], [], [], [KAKADU])
+
 dnl Force some global compile flags upon everyone
 dnl We could also apply all over our dependences at this point ....
-AM_CPPFLAGS="-I\${abs_top_srcdir}/include -I\${abs_top_builddir}/include"
+AM_CPPFLAGS="-I\${abs_top_srcdir}/include -I\${abs_top_builddir}/include -DGMM_USES_SUPERLU -DNPARTITION -DNSUPERNODAL"
+AM_CXXFLAGS="$PKG_ISISALLDEPS_CPPFLAGS $OTHER_CPPFLAGS"
+AM_LDFLAGS="$PKG_ISISALLDEPS_LDFLAGS $OTHER_LDFLAGS"
+
 AC_SUBST(AM_CPPFLAGS)
+AC_SUBST(AM_CXXFLAGS)
+AC_SUBST(AM_LDFLAGS)
 
 dnl Tell automake what makefiles it needs to produce
 PYTHON_INSERT_HERE AC_CONFIG_FILES

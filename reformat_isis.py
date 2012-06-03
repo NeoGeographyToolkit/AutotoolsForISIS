@@ -50,6 +50,9 @@ def write_makefile_am_from_objs_dir( directory ):
 
     # Additional clean up for all of the auto generated files.
     if all_protoprefixes:
+        directory_w_proto = \
+            list(set([P.dirname(P.relpath(x,directory)) for x in all_protoprefixes]))
+        print('AM_CXXFLAGS     += %s' % ' '.join(["-I$(srcdir)/%s" % x for x in directory_w_proto]), file=makefile)
         print('include_HEADERS = $(protocol_headers)', file=makefile)
         print('BUILT_SOURCES   = $(protocol_sources)', file=makefile)
         print('CLEANFILES      = $(protocol_headers) $(protocol_sources)', file=makefile)
@@ -78,13 +81,24 @@ if __name__ == '__main__':
     # Traverse and copy all files which are not make files or headers
     shutil.copytree( P.join(opt.isisroot,'src'),
                      P.join(opt.destination,'src'),
-                     ignore=shutil.ignore_patterns('Makefile','apps','unitTest.cpp','tsts','*.h'))
+                     ignore=shutil.ignore_patterns('Makefile','apps','unitTest.cpp','tsts','*.h','docsys','qisis'))
+
+    # Remove any directories which are empty (Kaguya)
+    for root, dirs, files in os.walk( P.join(opt.destination, 'src'),
+                                      topdown=False ):
+        # Remove any directories we might have deleted during our
+        # reverse directory walk.
+        dirs = [x for x in dirs if P.exists(P.join(root,x))]
+        if not dirs and not files:
+            os.rmdir( root )
 
     # Copy all headers into their own directory ... because ISIS
     # doesn't use paths in their '#includes'.
     os.mkdir( P.join( opt.destination, 'include' ) )
     header_dir = P.join( opt.destination, 'include' )
     for root, dirs, files in os.walk( P.join( opt.isisroot, 'src' ) ):
+        if "/apps/" in root:
+            continue
         headers = [h for h in files if h.endswith('.h')]
         for header in headers:
             shutil.copy( P.join(root, header ),

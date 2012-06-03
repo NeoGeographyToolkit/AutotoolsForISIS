@@ -12,9 +12,9 @@ PROTOC_ARGS =
 
 .proto.pb.cc :
 	$(AM_V_GEN)( \
-		SRC=`cd $(abs_top_srcdir)/src && pwd` ;\
-		OBJ=`cd $(abs_top_builddir)/src && pwd` ;\
 		FILEDIR=`cd $$(dirname $<) && pwd` ;\
+		SRC=`cd $(abs_srcdir)/$$(dirname $<) && pwd` ;\
+		OBJ=`cd $(abs_builddir)/$$(dirname $<) && pwd` ;\
 		FILENAME="$$FILEDIR/$$(basename $<)" ;\
 		cd "$$SRC" && \
 		$(PROTOC) -I"$$SRC" -I"$$OBJ" --cpp_out="$$OBJ" $(PROTOC_ARGS) "$$FILENAME" \
