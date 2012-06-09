@@ -7,7 +7,7 @@ from optparse import OptionParser
 from glob import glob
 import shutil, sys, os
 
-def write_makefile_am_closing( directory, makefile, all_protoprefixes ):
+def write_makefile_am_closing( directory, makefile, all_protoprefixes, CLEANFILES = [], BUILT_SOURCES = [] ):
     print('\nincludedir      = $(prefix)/include', file=makefile)
     print('\ninclude $(top_srcdir)/config/rules.mak\n', file=makefile)
 
@@ -17,12 +17,12 @@ def write_makefile_am_closing( directory, makefile, all_protoprefixes ):
             list(set([P.dirname(P.relpath(x,directory)) for x in all_protoprefixes]))
         print('AM_CXXFLAGS     += %s' % ' '.join(["-I$(srcdir)/%s" % x for x in directory_w_proto]), file=makefile)
         print('include_HEADERS = $(protocol_headers)', file=makefile)
-        print('BUILT_SOURCES   = $(protocol_sources)', file=makefile)
-        print('CLEANFILES      = $(protocol_headers) $(protocol_sources)', file=makefile)
+        print('BUILT_SOURCES   = $(protocol_sources) %s' % ' '.join(BUILT_SOURCES), file=makefile)
+        print('CLEANFILES      = $(protocol_headers) $(protocol_sources) %s' % ' '.join(CLEANFILES), file=makefile)
         print('EXTRA_DIST      = %s $(protocol_headers) $(protocol_sources)' % ' '.join([P.relpath(x + ".proto",directory) for x in all_protoprefixes]), file=makefile)
         print('include $(top_srcdir)/thirdparty/protobuf.mak', file=makefile)
 
-def write_makefile_am_from_objs_dir_core( directory ):
+def write_makefile_am_from_objs_dir_core( directory, moc_generated_files ):
     makefile = open(P.join(directory,'Makefile.am'), 'w')
 
     all_protoprefixes = []
@@ -47,6 +47,14 @@ def write_makefile_am_from_objs_dir_core( directory ):
         sourcefiles.extend( glob(P.join(sdirectory,'*.cpp')) )
         sourcefiles.extend( [x + ".pb.cc" for x in protoprefixes] )
 
+    # Write out additional build sources from MOC
+    additional_built_files = []
+    for pair in moc_generated_files:
+        moc_built = P.join( directory, P.basename(pair[1]),
+                            pair[0].split('.')[0] + ".moc.cc" )
+        additional_built_files.append( P.relpath(moc_built,directory) )
+        sourcefiles.append( moc_built )
+
     # Write out the dependencies for libisis
     print('libisis3_la_SOURCES = ', file=makefile, end='')
     for source in sourcefiles:
@@ -54,7 +62,8 @@ def write_makefile_am_from_objs_dir_core( directory ):
         print(' \\\n  %s' % relative_source, file=makefile, end='')
     print('\n', file=makefile)
     print('lib_LTLIBRARIES = libisis3.la', file=makefile)
-    write_makefile_am_closing( directory, makefile, all_protoprefixes )
+    write_makefile_am_closing( directory, makefile, all_protoprefixes,
+                               additional_built_files, additional_built_files )
 
 def write_makefile_am_from_objs_dir( directory ):
     makefile = open(P.join(directory,'Makefile.am'), 'w')
@@ -132,11 +141,15 @@ if __name__ == '__main__':
     # headers. The destination is determined by the plugin file. If
     # there doesn't exist such a file ... then they get dumped into
     # the main core library.
-    ignore_func = ignore=shutil.ignore_patterns('Makefile','apps','unitTest.cpp','tsts','*.h','docsys','qisis', '*.truth','*.plugin')
+    #
+    # While we're here .. we'll copy the headers to include
+    os.mkdir( P.join( opt.destination, 'include' ) )
+    header_dir = P.join( opt.destination, 'include' )
+    ignore_func = ignore=shutil.ignore_patterns('Makefile','apps','unitTest.cpp','tsts','*.h','*.truth','*.plugin','*.cub','*.xml')
+    moc_generated_files = []
     for root, dirs, files in os.walk( P.join(opt.isisroot, 'src') ):
-        root_split = root.split('/');
-        if 'qisis' in root_split or \
-                'docsys' in root_split:
+        root_split = root.split('/')
+        if 'qisis' in root_split or 'docsys' in root_split:
             continue
         if root_split[-1] == "objs":
             for obj in dirs:
@@ -145,14 +158,37 @@ if __name__ == '__main__':
                 if len(plugin) > 1:
                     print("ERROR: Found more than one plugin file!\n")
                     sys.exit()
+                destination_sub_path = None
                 if not plugin:
-                    shutil.copytree( P.join( root, obj ),
-                                     P.join( opt.destination, 'src', 'Core', obj ),
-                                     ignore=ignore_func )
+                    destination_sub_path = P.join( 'src', 'Core', obj )
                 else:
-                    shutil.copytree( P.join( root, obj ),
-                                     P.join( opt.destination, 'src', plugin[0], obj ),
-                                     ignore=ignore_func )
+                    destination_sub_path = P.join( 'src', plugin[0], obj )
+
+                shutil.copytree( P.join( root, obj ),
+                                 P.join( opt.destination, destination_sub_path),
+                                 ignore=ignore_func )
+
+                # Move headers to the include directory. If they need
+                # to be MOC generated ... I'll do an ugly hack an just
+                # make a softlink that points to the new header
+                # location. This hack is required because ISIS expects
+                # its headers all to be in one spot.
+                headers = glob( P.join( root, obj, '*.h' ) )
+                for header in headers:
+                    shutil.copy( header, header_dir )
+                    # See if this header needs an autogenerated MOC
+                    # file.
+                    for line in open( header ):
+                        if "Q_OBJECT" in line:
+                            moc_generated_files.append( [P.basename(header), destination_sub_path] )
+                            symlink_output = P.join(opt.destination,destination_sub_path,
+                                                    P.basename(header))
+                            os.symlink( P.relpath(P.join(header_dir,P.basename(header)),
+                                                  P.dirname(symlink_output) ),
+                                        symlink_output )
+                            break
+
+    print("MOC Generated Files: %s" % moc_generated_files )
 
     # Remove any directories which are empty (kaguya has no binaries)
     for root, dirs, files in os.walk( P.join(opt.destination, 'src'),
@@ -161,17 +197,6 @@ if __name__ == '__main__':
         if not dirs and not files:
             os.rmdir( root )
 
-    # Copy all headers into their own directory ... because ISIS
-    # doesn't use paths in their '#includes'.
-    os.mkdir( P.join( opt.destination, 'include' ) )
-    header_dir = P.join( opt.destination, 'include' )
-    for root, dirs, files in os.walk( P.join( opt.isisroot, 'src' ) ):
-        if "/apps/" in root:
-            continue
-        headers = [h for h in files if h.endswith('.h')]
-        for header in headers:
-            shutil.copy( P.join(root, header ),
-                         P.join(header_dir) )
     del header_dir
 
     # So Writing Makefile.am from directory contents
@@ -192,7 +217,8 @@ if __name__ == '__main__':
 
     for plugin in plugins:
         write_makefile_am_from_objs_dir( P.join( opt.destination, 'src', plugin ) )
-    write_makefile_am_from_objs_dir_core( P.join( opt.destination, 'src', 'Core' ) )
+    write_makefile_am_from_objs_dir_core( P.join( opt.destination, 'src', 'Core' ),
+                                          moc_generated_files )
     plugins.add('Core')
     with open(P.join(opt.destination,'src','Makefile.am'), 'w') as makefile:
         print('SUBDIRS = ', file=makefile, end='')

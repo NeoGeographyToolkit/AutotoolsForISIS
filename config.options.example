@@ -7,6 +7,7 @@ BASE=$HOME/packages/base_system
 HAVE_PKG_ARBITRARY_QT=$BASE/extra_install
 QT_ARBITRARY_MODULES="QtCore QtGui QtNetwork QtSql QtSvg QtXml QtXmlPatterns"
 PKG_ARBITRARY_QT_CPPFLAGS="-I$BASE/extra_install/include -I$BASE/extra_install/include/QtCore -I$BASE/extra_install/include/QtGui -I$BASE/extra_install/include/QtNetwork -I$BASE/extra_install/include/QtSql -I$BASE/extra_install/include/QtSvg -I$BASE/extra_install/include/QtXml -I$BASE/extra_install/include/QtXmlPatterns"
+MOC=$BASE/extra_install/bin/moc
 HAVE_PKG_APPLE_QWT=no
 HAVE_PKG_QWT=$BASE/extra_install
 HAVE_PKG_BOOST=$BASE

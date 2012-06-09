@@ -104,6 +104,11 @@ AX_PKG_ONE_OF(QT,
       AX_PKG(QT_GUESS_OPENGL, [QT_GUESS_CORE QT_GUESS_GUI], [-lQtOpenGL], [QtOpenGL], [QtOpenGL])
       AX_GROUP_PKG(GUESS_QT,  [QT_GUESS_BASE QT_GUESS_CORE QT_GUESS_GUI QT_GUESS_SQL QT_GUESS_NETWORK QT_GUESS_OPENGL])])
 
+AC_PATH_TOOL( MOC, [moc], [no], [$PKG_PATHS_QT/bin$PATH_SEPARATOR$PATH])
+if test x"$MOC" = "xno"; then
+   AC_MSG_ERROR([cannot find moc used by QT])
+fi
+
 AX_PKG_ONE_OF(QWT,
     APPLE_QWT, [AX_PKG_APPLE(QWT, [QT], [-framework qwt])],
     PLAIN_QWT, [AX_PKG(PLAIN_QWT, [QT], [-lqwt], [qwt.h])],

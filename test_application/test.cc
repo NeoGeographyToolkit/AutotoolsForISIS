@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stdlib.h>
 
 // Additional Headers required for ISIS
 #include <FileName.h>
@@ -17,8 +18,18 @@
 
 int main( int argc, char **argv ) {
 
+  if ( !getenv("ISISROOT") ) {
+    std::cerr << "Please define ISISROOT as the directory contain the lib directory that holds all ISIS libraries." << std::endl;
+    return 1;
+  }
+
+  if ( !getenv("ISIS3DATA") ) {
+    std::cerr << "Please define ISIS3DATA as the directory that contains base and mission specific kernels." << std::endl;
+    return 1;
+  }
+
   if ( argc != 2 ) {
-    std::cerr << "Please provide a cube file as the first argument\n";
+    std::cerr << "Please provide a cube file as the first argument." << std::endl;
     return 1;
   }
 
