@@ -6,6 +6,7 @@ import os.path as P
 from optparse import OptionParser
 from glob import glob
 import shutil, sys, os
+from datetime import datetime
 
 def write_makefile_am_closing( directory, makefile, all_protoprefixes, CLEANFILES = [], BUILT_SOURCES = [] ):
     print('\nincludedir      = $(prefix)/include', file=makefile)
@@ -110,6 +111,7 @@ if __name__ == '__main__':
 
     parser.add_option('--isisroot', dest='isisroot', default=None, help='Copy of ISIS to clone from')
     parser.add_option('--destination', dest='destination', default='isis_autotools', help='Directory to write reformatted ISIS release')
+    parser.add_option('--basename', dest='basename', default='ISIS_AutoTools', help='Basename to use for output tarball')
 
     global opt
     (opt, args) = parser.parse_args()
@@ -188,8 +190,6 @@ if __name__ == '__main__':
                                         symlink_output )
                             break
 
-    print("MOC Generated Files: %s" % moc_generated_files )
-
     # Remove any directories which are empty (kaguya has no binaries)
     for root, dirs, files in os.walk( P.join(opt.destination, 'src'),
                                       topdown=False):
@@ -219,6 +219,32 @@ if __name__ == '__main__':
         write_makefile_am_from_objs_dir( P.join( opt.destination, 'src', plugin ) )
     write_makefile_am_from_objs_dir_core( P.join( opt.destination, 'src', 'Core' ),
                                           moc_generated_files )
+
+    # Create extra directory which contains IsisPreferences and the
+    # plugin files. The plugin files will need to be appended to each
+    # other here. There is also a Makefile to tell autotools where to
+    # install every thing.
+    extra_dir = P.join( opt.destination, 'extra' )
+    os.mkdir( extra_dir )
+    shutil.copy( P.join( opt.isisroot, 'IsisPreferences' ),
+                 extra_dir )
+    shutil.copy( P.join( opt.isisroot, 'version' ),
+                 extra_dir )
+    for root, dirs, files in os.walk( P.join(opt.isisroot, 'src') ):
+        for plugin in [x for x in files if x.endswith('.plugin')]:
+            with open( P.join(extra_dir, plugin), 'ab' ) as dest_txt:
+                shutil.copyfileobj(open( P.join( root, plugin ), 'rb' ),
+                                   dest_txt )
+    with open(P.join(opt.destination,'extra','Makefile.am'), 'w') as makefile:
+        print('prefixdir = @prefix@', file=makefile)
+        print('prefix_DATA = IsisPreferences version', file=makefile)
+        print('mylibdir = $(libdir)', file=makefile)
+        print('mylib_DATA = %s' % ' '.join( [x +".plugin" for x in plugins] ),
+              file=makefile )
+        print('EXTRA_DIST = IsisPreferences %s' % ' '.join( [x + ".plugin" for x in plugins] ),
+              file=makefile )
+
+    # Write a Makefile for all of the directories under 'src'
     plugins.add('Core')
     with open(P.join(opt.destination,'src','Makefile.am'), 'w') as makefile:
         print('SUBDIRS = ', file=makefile, end='')
@@ -226,14 +252,16 @@ if __name__ == '__main__':
             print(' \\\n  %s' % dir, file=makefile, end='')
         print('\n', file=makefile)
 
-    # Write an incompassing makefile.am for each directory
+    # Write an incompassing makefile.am
+    shutil.copy( 'config.options.example',
+                 P.join( opt.destination ) )
     with open(P.join(opt.destination,'Makefile.am'), 'w') as makefile:
         print('ACLOCAL_AMFLAGS = -I m4', file=makefile)
-        print('SUBDIRS = src include\n', file=makefile)
+        print('SUBDIRS = src include extra\n', file=makefile)
         # EXTRA_DIST are just objects that we want copied into the
         # distribution tarball for ISIS .. if we wish to do so.
         print('EXTRA_DIST = \\', file=makefile)
-        print('  autogen', file=makefile)
+        print('  autogen config.options.example', file=makefile)
 
     # Write a make file for the include/header directory
     with open(P.join(opt.destination,'include','Makefile.am'), 'w') as makefile:
@@ -262,3 +290,12 @@ if __name__ == '__main__':
                     print('])', file=configure)
             else:
                 configure.write( line )
+
+    # Create a tarball of everything and date it.
+    version_number = ""
+    with open(P.join(opt.isisroot,'version'), 'r') as f:
+        version_number = f.readline()
+        version_number = version_number[:version_number.find('#')].strip()
+    tarball_name = "%s-%s-%s.tar.gz" % (opt.basename,version_number,str(datetime.now().date()))
+    print("Creating tarball: %s" % tarball_name)
+    os.system( "tar czf %s %s" % (tarball_name, opt.destination) )
