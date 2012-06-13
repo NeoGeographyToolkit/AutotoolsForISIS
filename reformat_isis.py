@@ -139,7 +139,8 @@ if __name__ == '__main__':
         sys.exit(-1)
 
     # Copy in custom scripts and files that we use
-    shutil.copytree( 'dist-add', P.join(opt.destination),
+    shutil.copytree( P.join( P.dirname(P.realpath(__file__)), 'dist-add'),
+                     P.join(opt.destination),
                      ignore=shutil.ignore_patterns('*~') )
 
     # Traverse the source tree an create a set of the plugins
