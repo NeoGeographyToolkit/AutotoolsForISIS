@@ -271,7 +271,7 @@ if __name__ == '__main__':
         print('\n', file=makefile)
 
     # Write an incompassing makefile.am
-    shutil.copy( 'config.options.example',
+    shutil.copy( P.join( P.dirname( P.realpath(__file__)), 'config.options.example' ),
                  P.join( opt.destination ) )
     with open(P.join(opt.destination,'Makefile.am'), 'w') as makefile:
         print('ACLOCAL_AMFLAGS = -I m4', file=makefile)
