@@ -26,4 +26,4 @@ if test "$am_v2" \< "$am_working" ; then
     echo
 fi
 
-autoreconf --force --verbose --install -I m4 -I thirdparty/m4
+autoreconf --force --verbose --install -I m4

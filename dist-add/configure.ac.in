@@ -191,6 +191,9 @@ AX_PKG(CHOLMOD_WO_SUBDIR, [AMD COLAMD LAPACK], [-DNPARTITION -DNSUPERNODAL], [ch
 AX_PKG(CHOLMOD, [CHOLMOD_WO_SUBDIR], [-lcholmod], [CHOLMOD/cholmod.h]) # CHOLMOD internally doesn't use a path
 
 AX_PKG( ISISALLDEPS, [LAPACK QWT CURL XERCESC Z TIFF SPICE TNT JAMA GEOS GSL GMM PROTOBUF BOOST CHOLMOD], [], [], [], [], [], [KAKADU])
+if test "${HAVE_PKG_ISISALLDEPS}" != "yes"; then
+   AC_MSG_ERROR([cannot build ISIS with out its dependencies in ISISALLDEPS])
+fi
 
 dnl Force some global compile flags upon everyone
 dnl We could also apply all over our dependences at this point ....
