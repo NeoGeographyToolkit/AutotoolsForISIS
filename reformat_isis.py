@@ -22,7 +22,7 @@ from __future__ import print_function
 import os.path as P
 from optparse import OptionParser
 from glob import glob
-import shutil, sys, os
+import shutil, sys, os, subprocess
 from datetime import datetime
 
 def write_makefile_am_closing( directory, makefile, all_protoprefixes, CLEANFILES = [], BUILT_SOURCES = [] ):
@@ -138,8 +138,10 @@ if __name__ == '__main__':
         print('\nIllegal argument to --isisroot: path does not exist')
         sys.exit(-1)
 
+    reformater_dir = P.dirname(P.realpath(__file__))
+
     # Copy in custom scripts and files that we use
-    shutil.copytree( P.join( P.dirname(P.realpath(__file__)), 'dist-add'),
+    shutil.copytree( P.join( reformater_dir, 'dist-add'),
                      P.join(opt.destination),
                      ignore=shutil.ignore_patterns('*~') )
 
@@ -271,7 +273,7 @@ if __name__ == '__main__':
         print('\n', file=makefile)
 
     # Write an incompassing makefile.am
-    shutil.copy( P.join( P.dirname( P.realpath(__file__)), 'config.options.example' ),
+    shutil.copy( P.join( reformater_dir, 'config.options.example' ),
                  P.join( opt.destination ) )
     with open(P.join(opt.destination,'Makefile.am'), 'w') as makefile:
         print('ACLOCAL_AMFLAGS = -I m4', file=makefile)
@@ -308,6 +310,11 @@ if __name__ == '__main__':
                     print('])', file=configure)
             else:
                 configure.write( line )
+
+    # Apply Patches
+    for patch in glob( P.join( reformater_dir, 'patches','*') ):
+        cmd = ['patch','-p0','-i',patch]
+        subprocess.check_call(cmd,cwd=opt.destination)
 
     # Create a tarball of everything and date it.
     version_number = ""
