@@ -1,0 +1,20 @@
+diff -crB ./src/Core/SparseBlockMatrix/SparseBlockMatrix.cpp ../isis_autotools_mod/src/Core/SparseBlockMatrix/SparseBlockMatrix.cpp
+*** ./src/Core/SparseBlockMatrix/SparseBlockMatrix.cpp	2012-06-14 15:31:09.000000000 -0700
+--- ../isis_autotools_mod/src/Core/SparseBlockMatrix/SparseBlockMatrix.cpp	2012-06-14 15:54:15.000000000 -0700
+***************
+*** 29,35 ****
+  #include <boost/numeric/ublas/matrix_sparse.hpp>
+  #include <boost/numeric/ublas/matrix_proxy.hpp>
+  #include <boost/numeric/ublas/io.hpp>
+! 
+  
+  using namespace boost::numeric::ublas;
+  
+--- 29,35 ----
+  #include <boost/numeric/ublas/matrix_sparse.hpp>
+  #include <boost/numeric/ublas/matrix_proxy.hpp>
+  #include <boost/numeric/ublas/io.hpp>
+! #include <boost/numeric/ublas/matrix.hpp>
+  
+  using namespace boost::numeric::ublas;
+  
