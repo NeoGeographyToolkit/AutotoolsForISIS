@@ -197,7 +197,7 @@ dnl Force some global compile flags upon everyone
 dnl We could also apply all over our dependences at this point ....
 AM_CPPFLAGS="-I\${abs_top_srcdir}/include -I\${abs_top_builddir}/include -DGMM_USES_SUPERLU -DNPARTITION -DNSUPERNODAL"
 AM_CXXFLAGS="$PKG_ISISALLDEPS_CPPFLAGS $OTHER_CPPFLAGS"
-AM_LDFLAGS="$PKG_ISISALLDEPS_LDFLAGS $OTHER_LDFLAGS"
+AM_LDFLAGS="$OTHER_LDFLAGS"
 
 AC_SUBST(AM_CPPFLAGS)
 AC_SUBST(AM_CXXFLAGS)

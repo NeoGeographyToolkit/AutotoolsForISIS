@@ -79,6 +79,7 @@ def write_makefile_am_from_objs_dir_core( directory, moc_generated_files ):
         relative_source = P.relpath( source, directory )
         print(' \\\n  %s' % relative_source, file=makefile, end='')
     print('\n', file=makefile)
+    print('libisis3_la_LIBADD = @PKG_ISISALLDEPS_LIBS@', file=makefile)
     print('lib_LTLIBRARIES = libisis3.la', file=makefile)
     write_makefile_am_closing( directory, makefile, all_protoprefixes,
                                additional_built_files, additional_built_files )
@@ -116,6 +117,7 @@ def write_makefile_am_from_objs_dir( directory ):
                 relative_source = P.relpath( source, directory )
                 print(' \\\n  %s' % relative_source, file=makefile, end='')
             print('\n', file=makefile)
+            print('lib%s_la_LIBADD = @PKG_ISISALLDEPS_LIBS@' % module_name, file=makefile)
 
     print('lib_LTLIBRARIES   =', file=makefile, end='')
     for module in module_names:
