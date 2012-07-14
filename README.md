@@ -9,12 +9,16 @@ http://en.wikipedia.org/wiki/GNU_build_system
 
 ## How to use this project
 
-This is still a work in progress. At the time of this writing, this
-build system doesn't work well enough to actually compile anything. It
-just applies the build system.
+This project is by its very nature is fragile. Use it as an example
+for how to build ISIS with autotools. Our purpose for this project is
+to build a copy of ISIS for our distributions of Ames Stereo
+Pipeline. If you'd like to see those build scripts, take a look at our
+BinaryBuilder project. It is essentially a package manager.
+
+https://github.com/NeoGeographyToolkit/BinaryBuilder
 
 ```bash
-> Download ISIS
+> Download the Mac OSX version ISIS. We don't care if doesn't run on your system. We're pillaging it for its source code.
 > ./reformat_isis.py --isisroot=$YOUR_ISIS_ROOT_THAT_YOU_JUST_DOWNLOADED
 > cd isis_autotools
 > ./autogen
