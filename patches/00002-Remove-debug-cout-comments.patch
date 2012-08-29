@@ -1,0 +1,19 @@
+diff -crB ./src/Core/SpiceRotation/SpiceRotation.cpp ../isis_mod/src/Core/SpiceRotation/SpiceRotation.cpp
+*** ./src/Core/SpiceRotation/SpiceRotation.cpp	2012-05-28 16:02:08.000000000 -0700
+--- ../isis_mod/src/Core/SpiceRotation/SpiceRotation.cpp	2012-08-29 07:37:36.000000000 -0700
+***************
+*** 586,597 ****
+      if (p_source == PolyFunctionOverSpice) {
+        LineCache(tableName);
+  
+-       std::cout << "Full cache size is " << p_cache.size() << endl;
+- 
+        p_minimizeCache = Yes;
+        LoadTimeCache();
+- 
+-       std::cout << "Minimized cache size is " << p_cache.size() << endl;
+      }
+  
+      // Load the list of rotations and their corresponding times
+--- 586,593 ----
+Only in ../isis_mod/src/Core/SpiceRotation: SpiceRotation.cpp~
