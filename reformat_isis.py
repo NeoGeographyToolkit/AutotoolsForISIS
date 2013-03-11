@@ -35,10 +35,14 @@ def write_makefile_am_closing( directory, makefile, all_protoprefixes, CLEANFILE
             list(set([P.dirname(P.relpath(x,directory)) for x in all_protoprefixes]))
         print('AM_CXXFLAGS     += %s' % ' '.join(["-I$(srcdir)/%s" % x for x in directory_w_proto]), file=makefile)
         print('include_HEADERS = $(protocol_headers)', file=makefile)
-        print('BUILT_SOURCES   = $(protocol_sources) %s' % ' '.join(BUILT_SOURCES), file=makefile)
-        print('CLEANFILES      = $(protocol_headers) $(protocol_sources) %s' % ' '.join(CLEANFILES), file=makefile)
         print('EXTRA_DIST      = %s $(protocol_headers) $(protocol_sources)' % ' '.join([P.relpath(x + ".proto",directory) for x in all_protoprefixes]), file=makefile)
         print('include $(top_srcdir)/thirdparty/protobuf.mak', file=makefile)
+    if BUILT_SOURCES:
+        print('BUILT_SOURCES   = $(protocol_sources) %s' % ' '.join(BUILT_SOURCES), file=makefile)
+    if CLEANFILES:
+        print('CLEANFILES      = $(protocol_headers) $(protocol_sources) %s' % ' '.join(CLEANFILES), file=makefile)
+
+
 
 def write_makefile_am_from_objs_dir_core( directory, moc_generated_files ):
     makefile = open(P.join(directory,'Makefile.am'), 'w')
@@ -83,6 +87,56 @@ def write_makefile_am_from_objs_dir_core( directory, moc_generated_files ):
     print('lib_LTLIBRARIES = libisis3.la', file=makefile)
     write_makefile_am_closing( directory, makefile, all_protoprefixes,
                                additional_built_files, additional_built_files )
+
+def write_makefile_am_from_apps_dir( directory, moc_generated_files ):
+    makefile = open(P.join(directory,'Makefile.am'), 'w')
+
+    # For some reason ISIS repeats a lot of headers and source
+    # files. I think they actually compile some of their sources
+    # multiple times.
+    #
+    # To save on errors from autogen, we must keep a dictionary of files
+    sources_thus_far = []
+
+    app_names = []
+    moc_sources = []
+    for sdirectory in glob(P.join(directory,'*')):
+        if not P.isdir( sdirectory ):
+            continue
+        app_name = P.relpath( sdirectory, directory ).split(".")[0]
+
+        # Write instructions to create an executable from the sources
+        sourcefiles = glob(P.join(sdirectory,'*.cpp'))
+        if sourcefiles:
+            app_names.append( app_name )
+            print('%s_SOURCES = ' % app_name, file=makefile, end='')
+            ld_add = []
+            for source in sourcefiles:
+                relative_source = P.relpath( source, directory )
+                filename = P.relpath( source, sdirectory )
+                if filename in sources_thus_far:
+                    ld_add.append("%s.$(OBJEXT)" % filename.split('.')[0])
+                else:
+                    sources_thus_far.append(filename)
+                    print(' \\\n  %s' % relative_source, file=makefile, end='')
+            # Identify headers that need to be moc generated
+            for header in glob(P.join(sdirectory,'*.h')):
+                for line in open( header ):
+                    if "Q_OBJECT" in line:
+                        moc_sources.append( "%s.dir/%s.moc.cc" % (app_name,P.basename(header).split('.')[0]) )
+                        print(' \\\n  %s' % moc_sources[-1], file=makefile, end='')
+                        break
+            print('\n', file=makefile, end='')
+            ld_add.append("../src/Core/libisis3.la") # They're referenced by directory path
+            # Mission specific stuff is DLopened I believe.
+            print('%s_LDADD = %s' % (app_name, " ".join(ld_add)), file=makefile)
+            print('%s_CFLAGS = $(AM_CFLAGS)' % app_name, file=makefile)
+            print('\n', file=makefile, end='')
+
+    print('bin_PROGRAMS =', file=makefile, end='')
+    for app in app_names:
+        print(' %s' % app, file=makefile, end='')
+    write_makefile_am_closing( directory, makefile, [], moc_sources, moc_sources )
 
 def write_makefile_am_from_objs_dir( directory ):
     makefile = open(P.join(directory,'Makefile.am'), 'w')
@@ -160,6 +214,7 @@ if __name__ == '__main__':
     for plugin in plugins:
         os.mkdir( P.join( opt.destination, 'src', plugin ) )
     os.mkdir( P.join( opt.destination, 'src', 'Core' ) )
+    os.mkdir( P.join( opt.destination, 'apps' ) )
 
     # Traverse and copy all files which are not make files or
     # headers. The destination is determined by the plugin file. If
@@ -169,12 +224,36 @@ if __name__ == '__main__':
     # While we're here .. we'll copy the headers to include
     os.mkdir( P.join( opt.destination, 'include' ) )
     header_dir = P.join( opt.destination, 'include' )
-    ignore_func = ignore=shutil.ignore_patterns('Makefile','apps','unitTest.cpp','tsts','*.h','*.truth','*.plugin','*.cub','*.xml')
-    moc_generated_files = []
+    ignore_func_obj = ignore=shutil.ignore_patterns('Makefile','apps','unitTest.cpp','tsts','*.h','*.truth','*.plugin','*.cub','*.xml')
+    ignore_func_app = ignore=shutil.ignore_patterns('Makefile','apps','unitTest.cpp','tsts','*.truth','*.plugin','*.cub','*.xml')
+    # Blacklisted applications are apps we don't build because we
+    # chose not to build the qisis module. This is the gui heavy
+    # applications.
+    #
+    # Dropped Phohillier & spkwriter because I couldn't figure out the
+    # linking bug. Probaby a link order thing?
+    app_blacklist = ["cnethist","hist","phohillier","spkwriter"]
+    moc_generated_obj = []
+    moc_generated_app = []
     for root, dirs, files in os.walk( P.join(opt.isisroot, 'src') ):
         root_split = root.split('/')
         if 'qisis' in root_split or 'docsys' in root_split:
             continue
+        if root_split[-1] == "apps":
+            for app in dirs:
+                if app in app_blacklist:
+                    continue
+                shutil.copytree( P.join( root, app ),
+                                 P.join( opt.destination, 'apps', app+".dir" ),
+                                 ignore=ignore_func_app )
+
+                # Identify headers that need to be processed through MOC
+                headers = glob( P.join( root, app, '*.h') )
+                for header in headers:
+                    for line in open( header ):
+                        if "Q_OBJECT" in line:
+                            moc_generated_app.append( [P.basename(header), P.join( 'apps', app+".dir" )] )
+                            break
         if root_split[-1] == "objs":
             for obj in dirs:
                 # Look for a plugin file:
@@ -190,7 +269,7 @@ if __name__ == '__main__':
 
                 shutil.copytree( P.join( root, obj ),
                                  P.join( opt.destination, destination_sub_path),
-                                 ignore=ignore_func )
+                                 ignore=ignore_func_obj )
 
                 # Move headers to the include directory. If they need
                 # to be MOC generated ... I'll do an ugly hack an just
@@ -204,7 +283,7 @@ if __name__ == '__main__':
                     # file.
                     for line in open( header ):
                         if "Q_OBJECT" in line:
-                            moc_generated_files.append( [P.basename(header), destination_sub_path] )
+                            moc_generated_obj.append( [P.basename(header), destination_sub_path] )
                             symlink_output = P.join(opt.destination,destination_sub_path,
                                                     P.basename(header))
                             os.symlink( P.relpath(P.join(header_dir,P.basename(header)),
@@ -240,7 +319,11 @@ if __name__ == '__main__':
     for plugin in plugins:
         write_makefile_am_from_objs_dir( P.join( opt.destination, 'src', plugin ) )
     write_makefile_am_from_objs_dir_core( P.join( opt.destination, 'src', 'Core' ),
-                                          moc_generated_files )
+                                          moc_generated_obj )
+
+    # Write a makefile for all the apps
+    write_makefile_am_from_apps_dir( P.join( opt.destination, 'apps' ),
+                                     moc_generated_app )
 
     # Create extra directory which contains IsisPreferences and the
     # plugin files. The plugin files will need to be appended to each
@@ -279,7 +362,7 @@ if __name__ == '__main__':
                  P.join( opt.destination ) )
     with open(P.join(opt.destination,'Makefile.am'), 'w') as makefile:
         print('ACLOCAL_AMFLAGS = -I m4', file=makefile)
-        print('SUBDIRS = src include extra\n', file=makefile)
+        print('SUBDIRS = src include extra apps\n', file=makefile)
         # EXTRA_DIST are just objects that we want copied into the
         # distribution tarball for ISIS .. if we wish to do so.
         print('EXTRA_DIST = \\', file=makefile)
