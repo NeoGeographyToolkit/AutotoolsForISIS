@@ -44,7 +44,9 @@ def write_makefile_am_closing( directory, makefile, all_protoprefixes, CLEANFILE
 
 
 
-def write_makefile_am_from_objs_dir_core( directory, moc_generated_files ):
+def write_makefile_am_from_objs_dir_core( directory,
+                                          header_directory,
+                                          moc_generated_files ):
     makefile = open(P.join(directory,'Makefile.am'), 'w')
 
     all_protoprefixes = []
@@ -60,8 +62,9 @@ def write_makefile_am_from_objs_dir_core( directory, moc_generated_files ):
             operator_ = "="
             if all_protoprefixes:
                 operator = "+="
+            print([P.relpath(P.join(header_directory,P.basename(x)+".pb.h"),directory) for x in protoprefixes])
             print('protocol_headers %s %s' %
-                  (operator_,' '.join([P.relpath(x + ".pb.h",directory) for x in protoprefixes])), file=makefile)
+                  (operator_,' '.join([P.relpath(P.join(header_directory,P.basename(x)+".pb.h"),directory) for x in protoprefixes])), file=makefile)
             print('protocol_sources %s %s\n' %
                   (operator_,' '.join([P.relpath(x + ".pb.cc",directory) for x in protoprefixes])), file=makefile)
         all_protoprefixes.extend( protoprefixes )
@@ -319,6 +322,7 @@ if __name__ == '__main__':
     for plugin in plugins:
         write_makefile_am_from_objs_dir( P.join( opt.destination, 'src', plugin ) )
     write_makefile_am_from_objs_dir_core( P.join( opt.destination, 'src', 'Core' ),
+                                          P.join( opt.destination, 'include' ),
                                           moc_generated_obj )
 
     # Write a makefile for all the apps
