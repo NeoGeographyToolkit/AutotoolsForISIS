@@ -17,5 +17,6 @@ PROTOC_ARGS =
 		OBJ=`cd $(abs_builddir)/$$(dirname $<) && pwd` ;\
 		FILENAME="$$FILEDIR/$$(basename $<)" ;\
 		cd "$$SRC" && \
-		$(PROTOC) -I"$$SRC" -I"$$OBJ" --cpp_out="$$OBJ" $(PROTOC_ARGS) "$$FILENAME" \
+		$(PROTOC) -I"$$SRC" -I"$$OBJ" --cpp_out="$$OBJ" $(PROTOC_ARGS) "$$FILENAME" ;\
+                mv "$$OBJ"/*.pb.h $(abs_top_builddir)/include/ \
 	)
