@@ -199,6 +199,13 @@ AM_CPPFLAGS="-I\${abs_top_srcdir}/include -I\${abs_top_builddir}/include -DGMM_U
 AM_CXXFLAGS="$PKG_ISISALLDEPS_CPPFLAGS $OTHER_CPPFLAGS"
 AM_LDFLAGS="$OTHER_LDFLAGS"
 
+dnl Checking endingness and apply everywhere
+AC_C_BIGENDIAN(
+        AM_CXXFLAGS="$AM_CXXFLAGS -DISIS_LITTLE_ENDIAN=0",
+        AM_CXXFLAGS="$AM_CXXFLAGS -DISIS_LITTLE_ENDIAN=1",
+        AC_MSG_ERROR(unknown endianess)
+)
+
 AC_SUBST(AM_CPPFLAGS)
 AC_SUBST(AM_CXXFLAGS)
 AC_SUBST(AM_LDFLAGS)
