@@ -25,7 +25,7 @@ from glob import glob
 import shutil, sys, os, subprocess
 from datetime import datetime
 
-def write_makefile_am_closing( directory, makefile, all_protoprefixes, CLEANFILES = [], BUILT_SOURCES = [] ):
+def write_makefile_am_closing( directory, makefile, all_protoprefixes=[], CLEANFILES = [], BUILT_SOURCES = [], EXTRA_DIST = [] ):
     print('\nincludedir      = $(prefix)/include', file=makefile)
     print('\ninclude $(top_srcdir)/config/rules.mak\n', file=makefile)
 
@@ -35,7 +35,7 @@ def write_makefile_am_closing( directory, makefile, all_protoprefixes, CLEANFILE
             list(set([P.dirname(P.relpath(x,directory)) for x in all_protoprefixes]))
         print('AM_CXXFLAGS     += %s' % ' '.join(["-I$(srcdir)/%s" % x for x in directory_w_proto]), file=makefile)
         print('include_HEADERS = $(protocol_headers)', file=makefile)
-        print('EXTRA_DIST      = %s $(protocol_headers) $(protocol_sources)' % ' '.join([P.relpath(x + ".proto",directory) for x in all_protoprefixes]), file=makefile)
+        print('EXTRA_DIST      = %s $(protocol_headers) $(protocol_sources) %s' % (' '.join([P.relpath(x + ".proto",directory) for x in all_protoprefixes]),' '.join(EXTRA_DIST)), file=makefile)
         print('include $(top_srcdir)/thirdparty/protobuf.mak', file=makefile)
     if BUILT_SOURCES:
         print('BUILT_SOURCES   = $(protocol_sources) %s' % ' '.join(BUILT_SOURCES), file=makefile)
@@ -62,7 +62,6 @@ def write_makefile_am_from_objs_dir_core( directory,
             operator_ = "="
             if all_protoprefixes:
                 operator = "+="
-            print([P.relpath(P.join(header_directory,P.basename(x)+".pb.h"),directory) for x in protoprefixes])
             print('protocol_headers %s %s' %
                   (operator_,' '.join([P.relpath(P.join(header_directory,P.basename(x)+".pb.h"),directory) for x in protoprefixes])), file=makefile)
             print('protocol_sources %s %s\n' %
@@ -103,10 +102,14 @@ def write_makefile_am_from_apps_dir( directory, moc_generated_files ):
 
     app_names = []
     moc_sources = []
+    xml_files = []
     for sdirectory in glob(P.join(directory,'*')):
         if not P.isdir( sdirectory ):
             continue
         app_name = P.relpath( sdirectory, directory ).split(".")[0]
+
+        # Identify XML files
+        xml_files.extend( P.relpath(x, directory) for x in glob(P.join(sdirectory,'*.xml')) )
 
         # Write instructions to create an executable from the sources
         sourcefiles = glob(P.join(sdirectory,'*.cpp'))
@@ -139,7 +142,13 @@ def write_makefile_am_from_apps_dir( directory, moc_generated_files ):
     print('bin_PROGRAMS =', file=makefile, end='')
     for app in app_names:
         print(' %s' % app, file=makefile, end='')
-    write_makefile_am_closing( directory, makefile, [], moc_sources, moc_sources )
+    print('', file=makefile)
+
+    # Write out where the XML files should be installed
+    print('xmlhelpdir = $(bindir)/xml', file=makefile)
+    print('xmlhelp_DATA = %s' % ' '.join(xml_files), file=makefile)
+
+    write_makefile_am_closing( directory, makefile, [], moc_sources, moc_sources, xml_files )
 
 def write_makefile_am_from_objs_dir( directory ):
     makefile = open(P.join(directory,'Makefile.am'), 'w')
@@ -228,7 +237,7 @@ if __name__ == '__main__':
     os.mkdir( P.join( opt.destination, 'include' ) )
     header_dir = P.join( opt.destination, 'include' )
     ignore_func_obj = ignore=shutil.ignore_patterns('Makefile','apps','unitTest.cpp','tsts','*.h','*.truth','*.plugin','*.cub','*.xml')
-    ignore_func_app = ignore=shutil.ignore_patterns('Makefile','apps','unitTest.cpp','tsts','*.truth','*.plugin','*.cub','*.xml')
+    ignore_func_app = ignore=shutil.ignore_patterns('Makefile','apps','unitTest.cpp','tsts','*.truth','*.plugin','*.cub')
     # Blacklisted applications are apps we don't build because we
     # chose not to build the qisis module. This is the gui heavy
     # applications.
