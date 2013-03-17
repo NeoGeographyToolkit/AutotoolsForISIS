@@ -16,7 +16,8 @@ PROTOC_ARGS =
 		SRC=`cd $(abs_srcdir)/$$(dirname $<) && pwd` ;\
 		OBJ=`cd $(abs_builddir)/$$(dirname $<) && pwd` ;\
 		FILENAME="$$FILEDIR/$$(basename $<)" ;\
+                PREFIX="$$(basename $< | sed 's|\(.*\)\..*|\1|g')" ;\
 		cd "$$SRC" && \
 		$(PROTOC) -I"$$SRC" -I"$$OBJ" --cpp_out="$$OBJ" $(PROTOC_ARGS) "$$FILENAME" ;\
-                mv "$$OBJ"/*.pb.h $(abs_top_builddir)/include/ \
+                mv "$$OBJ"/"$$PREFIX".pb.h $(abs_top_builddir)/include/ \
 	)
