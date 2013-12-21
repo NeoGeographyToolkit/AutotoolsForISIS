@@ -182,11 +182,10 @@ if test x"$HAVE_PKG_BOOST" = "xyes"; then
   AC_MSG_NOTICE([Using Boost header version $BOOST_VERSION, library suffix $PKG_BOOST_SAME_SUFFIX])
 fi
 
-AX_PKG(UFCONFIG, [], [-lufconfig], [CHOLMOD/UFconfig.h])
-AX_PKG(AMD, [], [-lamd], [], [], [], [], [UFCONFIG])
-AX_PKG(COLAMD, [], [-lcolamd], [], [], [], [], [UFCONFIG])
-AX_PKG(CHOLMOD_WO_SUBDIR, [AMD COLAMD LAPACK], [-DNPARTITION -DNSUPERNODAL], [cholmod.h], [CHOLMOD], [], [], [], [$HAVE_PKG_CHOLMOD]) # ISIS uses a path
-AX_PKG(CHOLMOD, [CHOLMOD_WO_SUBDIR], [-lcholmod], [CHOLMOD/cholmod.h]) # CHOLMOD internally doesn't use a path
+AX_PKG(SUITESPARSE, [], [-lsuitesparseconfig], [SuiteSparse_config.h])
+AX_PKG(AMD, [SUITESPARSE], [-lamd], [])
+AX_PKG(COLAMD, [SUITESPARSE], [-lcolamd], [])
+AX_PKG(CHOLMOD, [AMD COLAMD LAPACK SUITESPARSE],[-DNPARTITION -DNSUPERNODAL -lcholmod], [cholmod.h])
 
 AX_PKG( ISISALLDEPS, [LAPACK QWT CURL XERCESC Z TIFF SPICE TNT JAMA GEOS GSL GMM PROTOBUF BOOST CHOLMOD], [], [], [], [], [], [KAKADU])
 if test "${HAVE_PKG_ISISALLDEPS}" != "yes"; then

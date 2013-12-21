@@ -414,6 +414,14 @@ if __name__ == '__main__':
         cmd = ['patch','-p0','-i',patch]
         subprocess.check_call(cmd,cwd=opt.destination)
 
+    # Remove requirement on CHOLMOD directory and remove UFConfig.h
+    print(opt.destination)
+    subprocess.check_call(['pwd'],cwd=opt.destination)
+    cmd = ['sed','-i','-e','s#CHOLMOD/##g','include/BundleAdjust.h']
+    subprocess.check_call(cmd,cwd=opt.destination)
+    cmd = ['sed','-i','-e','s#UFconfig#SuiteSparse_config#g','include/BundleAdjust.h']
+    subprocess.check_call(cmd,cwd=opt.destination)
+
     # Create a tarball of everything and date it.
     version_number = ""
     with open(P.join(opt.isisroot,'version'), 'r') as f:
