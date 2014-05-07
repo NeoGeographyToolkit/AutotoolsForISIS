@@ -1,6 +1,6 @@
-diff -crB ./src/base/objs/SparseBlockMatrix/SparseBlockMatrix.cpp ../isis/src/Core/SparseBlockMatrix/SparseBlockMatrix.cpp
-*** .src/base/objs/SparseBlockMatrix/SparseBlockMatrix.cpp      2012-06-14 15:31:09.000000000 -0700
---- ../isis/src/Core/SparseBlockMatrix/SparseBlockMatrix.cpp    2012-06-14 15:54:15.000000000 -0700
+diff -crB ./src/Core/SparseBlockMatrix/SparseBlockMatrix.cpp ../isis_autotools_mod/src/Core/SparseBlockMatrix/SparseBlockMatrix.cpp
+*** ./src/Core/SparseBlockMatrix/SparseBlockMatrix.cpp	2012-06-14 15:31:09.000000000 -0700
+--- ../isis_autotools_mod/src/Core/SparseBlockMatrix/SparseBlockMatrix.cpp	2012-06-14 15:54:15.000000000 -0700
 ***************
 *** 5,5 ****
 --- 5,6 ----
