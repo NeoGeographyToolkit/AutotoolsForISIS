@@ -198,6 +198,8 @@ if __name__ == '__main__':
     parser.add_option('--destination', dest='destination', default='isis_autotools', help='Directory to write reformatted ISIS release')
     parser.add_option('--basename', dest='basename', default='ISIS_AutoTools', help='Basename to use for output tarball')
 
+    parser.add_option('--dont-build-apps', dest='dontBuildApps', default=False, action='store_true', help="Don't build any applications")
+
     global opt
     (opt, args) = parser.parse_args()
 
@@ -244,14 +246,15 @@ if __name__ == '__main__':
     #
     # Dropped Phohillier & spkwriter because I couldn't figure out the
     # linking bug. Probaby a link order thing?
-    app_blacklist = ["cnethist","hist","phohillier","spkwriter"]
+    # Dropped cam2map since our built version does not work.
+    app_blacklist = ["cnethist","hist","phohillier","spkwriter","cam2map"]
     moc_generated_obj = []
     moc_generated_app = []
     for root, dirs, files in os.walk( P.join(opt.isisroot, 'src') ):
         root_split = root.split('/')
         if 'qisis' in root_split or 'docsys' in root_split:
             continue
-        if root_split[-1] == "apps":
+        if (root_split[-1] == "apps") and (not options.dontBuildApps):
             for app in dirs:
                 if app in app_blacklist:
                     continue
