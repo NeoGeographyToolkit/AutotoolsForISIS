@@ -254,7 +254,7 @@ if __name__ == '__main__':
         root_split = root.split('/')
         if 'qisis' in root_split or 'docsys' in root_split:
             continue
-        if (root_split[-1] == "apps") and (not options.dontBuildApps):
+        if (root_split[-1] == "apps") and (not opt.dontBuildApps):
             for app in dirs:
                 if app in app_blacklist:
                     continue
