@@ -1,0 +1,37 @@
+diff -crB ./src/Core/NaifDskPlateModel/NaifDskPlateModel.cpp ./src/Core/NaifDskPlateModel/NaifDskPlateModel.cpp
+*** ./src/Core/NaifDskPlateModel/NaifDskPlateModel.cpp 	2015-03-15 17:31:53.000000000 -0700
+--- ./src/Core/NaifDskPlateModel/NaifDskPlateModel.cpp	2015-03-27 09:04:43.000000000 -0700
+***************
+*** 107,113 ****
+  
+  
+    /** Returns the number of plates in the model */
+!   int NaifDskPlateModel::numberPlates() const {
+      if ( !isValid() )  return (0);
+      return ( m_dsk->m_plates );
+    }
+--- 107,113 ----
+  
+  
+    /** Returns the number of plates in the model */
+!   SpiceInt NaifDskPlateModel::numberPlates() const {
+      if ( !isValid() )  return (0);
+      return ( m_dsk->m_plates );
+    }
+***************
+*** 115,121 ****
+  
+  
+    /** Returns the number of vertices in the plate model */
+!   int NaifDskPlateModel::numberVertices() const {
+      if ( !isValid() )  return (0);
+      return ( m_dsk->m_vertices );
+    }
+--- 115,121 ----
+  
+  
+    /** Returns the number of vertices in the plate model */
+!   SpiceInt NaifDskPlateModel::numberVertices() const {
+      if ( !isValid() )  return (0);
+      return ( m_dsk->m_vertices );
+    }
