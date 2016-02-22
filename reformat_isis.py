@@ -26,6 +26,7 @@ import shutil, sys, os, subprocess
 from datetime import datetime
 
 def write_makefile_am_closing( directory, makefile, all_protoprefixes=[], CLEANFILES = [], BUILT_SOURCES = [], EXTRA_DIST = [] ):
+    '''Close off a makefile written by one of the other functions.'''
     print('\nincludedir      = $(prefix)/include', file=makefile)
     print('\ninclude $(top_srcdir)/config/rules.mak\n', file=makefile)
 
@@ -47,21 +48,22 @@ def write_makefile_am_closing( directory, makefile, all_protoprefixes=[], CLEANF
 def write_makefile_am_from_objs_dir_core( directory,
                                           header_directory,
                                           moc_generated_files ):
+    '''Makefile writer for an /objs directory in the /core folder'''
     makefile = open(P.join(directory,'Makefile.am'), 'w')
 
     all_protoprefixes = []
     sourcefiles = []
-    for sdirectory in glob(P.join(directory,'*')):
+    for sdirectory in glob(P.join(directory,'*')): # Loop through all folders in this directory
         if not P.isdir( sdirectory ):
             continue
-        module_name = P.relpath( sdirectory, directory )
+        module_name = P.relpath( sdirectory, directory ) # Each folder corresponds to a module
 
         # Check for protofiles which would need to be generated
         protoprefixes = [P.splitext(x)[0] for x in glob(P.join(sdirectory,'*.proto'))]
         if protoprefixes:
             operator_ = "="
             if all_protoprefixes:
-                operator = "+="
+                operator = "+=" # Is this a bug?
             print('protocol_headers %s %s' %
                   (operator_,' '.join([P.relpath(P.join(header_directory,P.basename(x)+".pb.h"),directory) for x in protoprefixes])), file=makefile)
             print('protocol_sources %s %s\n' %
@@ -91,6 +93,7 @@ def write_makefile_am_from_objs_dir_core( directory,
                                additional_built_files, additional_built_files )
 
 def write_makefile_am_from_apps_dir( directory, moc_generated_files ):
+    '''Makefile writer for an /apps directory'''
     makefile = open(P.join(directory,'Makefile.am'), 'w')
 
     # For some reason ISIS repeats a lot of headers and source
@@ -103,10 +106,10 @@ def write_makefile_am_from_apps_dir( directory, moc_generated_files ):
     app_names = []
     moc_sources = []
     xml_files = []
-    for sdirectory in glob(P.join(directory,'*')):
+    for sdirectory in glob(P.join(directory,'*')): # Loop through all folders in the directory
         if not P.isdir( sdirectory ):
             continue
-        app_name = P.relpath( sdirectory, directory ).split(".")[0]
+        app_name = P.relpath( sdirectory, directory ).split(".")[0] # Each folder is an app
 
         # Identify XML files
         xml_files.extend( P.relpath(x, directory) for x in glob(P.join(sdirectory,'*.xml')) )
@@ -151,11 +154,12 @@ def write_makefile_am_from_apps_dir( directory, moc_generated_files ):
     write_makefile_am_closing( directory, makefile, [], moc_sources, moc_sources, xml_files )
 
 def write_makefile_am_from_objs_dir( directory ):
+    '''Makefile writer for an /objs directory OUTSIDE the /core folder, ie a plugin folder.'''
     makefile = open(P.join(directory,'Makefile.am'), 'w')
 
     module_names = []
     all_protoprefixes = []
-    for sdirectory in glob(P.join(directory,'*')):
+    for sdirectory in glob(P.join(directory,'*')): # Loop through all folders in this directory
         if not P.isdir( sdirectory ):
             continue
         module_name = P.relpath( sdirectory, directory )
@@ -190,14 +194,15 @@ def write_makefile_am_from_objs_dir( directory ):
         print(' lib%s.la' % module, file=makefile, end='')
     write_makefile_am_closing( directory, makefile, all_protoprefixes )
 
+#--------------------------------------------------------------------------------------------
+# The main function!
 if __name__ == '__main__':
     parser = OptionParser()
     parser.set_defaults(mode='all')
 
-    parser.add_option('--isisroot', dest='isisroot', default=None, help='Copy of ISIS to clone from')
-    parser.add_option('--destination', dest='destination', default='isis_autotools', help='Directory to write reformatted ISIS release')
-    parser.add_option('--basename', dest='basename', default='ISIS_AutoTools', help='Basename to use for output tarball')
-
+    parser.add_option('--isisroot',        dest='isisroot',      default=None, help='Copy of ISIS to clone from')
+    parser.add_option('--destination',     dest='destination',   default='isis_autotools', help='Directory to write reformatted ISIS release')
+    parser.add_option('--basename',        dest='basename',      default='ISIS_AutoTools', help='Basename to use for output tarball')
     parser.add_option('--dont-build-apps', dest='dontBuildApps', default=False, action='store_true', help="Don't build any applications")
 
     global opt
@@ -210,14 +215,16 @@ if __name__ == '__main__':
 
     reformater_dir = P.dirname(P.realpath(__file__))
 
-    # Copy in custom scripts and files that we use
+    # Copy all of the custom scripts and files that we use to the output directory
     shutil.copytree( P.join( reformater_dir, 'dist-add'),
                      P.join(opt.destination),
                      ignore=shutil.ignore_patterns('*~') )
 
-    # Traverse the source tree an create a set of the plugins
-    # files that exist. They'll determine where we'll put the object
-    # folders.
+    # Traverse the source tree and create a set of the plugins
+    # files that exist. They will determine where we'll put the object folders.
+    # - The plugin files themselves are actually tiny little config files.
+    # - There are only a handful of plugin file names, but the same name appears in 
+    #   multiple locations and the contents differ.
     plugins = set()
     for root, dirs, files in os.walk( P.join(opt.isisroot, 'src') ):
         for plugin in [x for x in files if x.endswith('.plugin')]:
@@ -234,12 +241,22 @@ if __name__ == '__main__':
     # headers. The destination is determined by the plugin file. If
     # there doesn't exist such a file ... then they get dumped into
     # the main core library.
-    #
+    # - The organization here is that all of the folders with a .plugin file
+    #   define specialized implementations of a generic class.  In our build
+    #   we dump all plugins of the same type into a folder at the same level as core.
+    # - Some files that were in /isis/name/sub before are now in /isis/core/name now.
+    # - Why do we do this?
+
     # While we're here .. we'll copy the headers to include
+    # - ISIS has duplicates of the include files in /inc and /src, but we only have
+    #   them once in /include.
     os.mkdir( P.join( opt.destination, 'include' ) )
     header_dir = P.join( opt.destination, 'include' )
+    
+    # Ignore functions for /obj folders and /app folders
     ignore_func_obj = ignore=shutil.ignore_patterns('Makefile','apps','unitTest.cpp','tsts','*.h','*.truth','*.plugin','*.cub','*.xml')
     ignore_func_app = ignore=shutil.ignore_patterns('Makefile','apps','unitTest.cpp','tsts','*.truth','*.plugin','*.cub')
+    
     # Blacklisted applications are apps we don't build because we
     # chose not to build the qisis module. This is the gui heavy
     # applications.
@@ -252,23 +269,29 @@ if __name__ == '__main__':
     moc_generated_app = []
     for root, dirs, files in os.walk( P.join(opt.isisroot, 'src') ):
         root_split = root.split('/')
-        if 'qisis' in root_split or 'docsys' in root_split:
+        if 'qisis' in root_split or 'docsys' in root_split: # We also don't build their documentation
             continue
+            
+        # Handle stuff in the apps folders
         if (root_split[-1] == "apps") and (not opt.dontBuildApps):
             for app in dirs:
                 if app in app_blacklist:
                     continue
+                # In ISIS, the apps are in as /apps folder alongside an associated /objs folder.
+                # We move everything from the various /apps folders into a single top level /apps folder.
                 shutil.copytree( P.join( root, app ),
                                  P.join( opt.destination, 'apps', app+".dir" ),
-                                 ignore=ignore_func_app )
+                                 ignore=ignore_func_app ) # This call will copy the headers to
 
-                # Identify headers that need to be processed through MOC
+                # Identify headers that need to be processed through MOC (QT's Meta-Object Compiler)
                 headers = glob( P.join( root, app, '*.h') )
                 for header in headers:
                     for line in open( header ):
                         if "Q_OBJECT" in line:
                             moc_generated_app.append( [P.basename(header), P.join( 'apps', app+".dir" )] )
                             break
+                            
+        # Handle stuff in the objs folders
         if root_split[-1] == "objs":
             for obj in dirs:
                 # Look for a plugin file:
@@ -277,25 +300,24 @@ if __name__ == '__main__':
                     print("ERROR: Found more than one plugin file!\n")
                     sys.exit()
                 destination_sub_path = None
-                if not plugin:
+                if not plugin: # Goes in Core
                     destination_sub_path = P.join( 'src', 'Core', obj )
-                else:
+                else: # Goes in the plugin folder we created earlier
                     destination_sub_path = P.join( 'src', plugin[0], obj )
 
                 shutil.copytree( P.join( root, obj ),
                                  P.join( opt.destination, destination_sub_path),
-                                 ignore=ignore_func_obj )
+                                 ignore=ignore_func_obj ) # This call does not copy headers
 
                 # Move headers to the include directory. If they need
-                # to be MOC generated ... I'll do an ugly hack an just
+                # to be MOC generated ... I'll do an ugly hack and just
                 # make a softlink that points to the new header
                 # location. This hack is required because ISIS expects
                 # its headers all to be in one spot.
                 headers = glob( P.join( root, obj, '*.h' ) )
                 for header in headers:
                     shutil.copy( header, header_dir )
-                    # See if this header needs an autogenerated MOC
-                    # file.
+                    # See if this header needs an autogenerated MOC file.
                     for line in open( header ):
                         if "Q_OBJECT" in line:
                             moc_generated_obj.append( [P.basename(header), destination_sub_path] )
@@ -306,7 +328,7 @@ if __name__ == '__main__':
                                         symlink_output )
                             break
 
-    # Remove any directories which are empty (kaguya has no binaries)
+    # Remove any destination directories which are empty (kaguya has no binaries)
     for root, dirs, files in os.walk( P.join(opt.destination, 'src'),
                                       topdown=False):
         dirs = [x for x in dirs if P.exists(P.join(root,x))]
@@ -331,6 +353,7 @@ if __name__ == '__main__':
     #
     # includedir = $(prefix)/include
 
+    # Generate plugin and core makefiles
     for plugin in plugins:
         write_makefile_am_from_objs_dir( P.join( opt.destination, 'src', plugin ) )
     write_makefile_am_from_objs_dir_core( P.join( opt.destination, 'src', 'Core' ),
@@ -343,20 +366,19 @@ if __name__ == '__main__':
 
     # Create extra directory which contains IsisPreferences and the
     # plugin files. The plugin files will need to be appended to each
-    # other here. There is also a Makefile to tell autotools where to
-    # install every thing.
+    # other here in a single file. There is also a Makefile to tell 
+    # autotools where to install everything.
     extra_dir = P.join( opt.destination, 'extra' )
     os.mkdir( extra_dir )
-    shutil.copy( P.join( opt.isisroot, 'IsisPreferences' ),
-                 extra_dir )
-    shutil.copy( P.join( opt.isisroot, 'version' ),
-                 extra_dir )
-    for root, dirs, files in os.walk( P.join(opt.isisroot, 'src') ):
+    shutil.copy( P.join( opt.isisroot, 'IsisPreferences' ), extra_dir )
+    shutil.copy( P.join( opt.isisroot, 'version' ),         extra_dir )
+    
+    for root, dirs, files in os.walk( P.join(opt.isisroot, 'src') ): # Loops to append the plugin files
         for plugin in [x for x in files if x.endswith('.plugin')]:
             with open( P.join(extra_dir, plugin), 'ab' ) as dest_txt:
-                shutil.copyfileobj(open( P.join( root, plugin ), 'rb' ),
-                                   dest_txt )
-    with open(P.join(opt.destination,'extra','Makefile.am'), 'w') as makefile:
+                shutil.copyfileobj(open( P.join( root, plugin ), 'rb' ), dest_txt )
+                
+    with open(P.join(opt.destination,'extra','Makefile.am'), 'w') as makefile: # The install makefile?
         print('prefixdir = @prefix@', file=makefile)
         print('prefix_DATA = IsisPreferences version', file=makefile)
         print('mylibdir = $(libdir)', file=makefile)
@@ -366,6 +388,7 @@ if __name__ == '__main__':
               file=makefile )
 
     # Write a Makefile for all of the directories under 'src'
+    # - Just a simple listing of the subdirectories
     plugins.add('Core')
     with open(P.join(opt.destination,'src','Makefile.am'), 'w') as makefile:
         print('SUBDIRS = ', file=makefile, end='')
@@ -374,6 +397,7 @@ if __name__ == '__main__':
         print('\n', file=makefile)
 
     # Write an incompassing makefile.am
+    # - Very little in this file.
     shutil.copy( P.join( reformater_dir, 'config.options.example' ),
                  P.join( opt.destination ) )
     with open(P.join(opt.destination,'Makefile.am'), 'w') as makefile:
@@ -385,6 +409,7 @@ if __name__ == '__main__':
         print('  autogen config.options.example', file=makefile)
 
     # Write a make file for the include/header directory
+    # - Just one big include list and the include directory
     with open(P.join(opt.destination,'include','Makefile.am'), 'w') as makefile:
         headers = glob(P.join(opt.destination,'include','*.h'))
         print('include_HEADERS = ', file=makefile, end='')
@@ -396,6 +421,7 @@ if __name__ == '__main__':
         print('\nincludedir = $(prefix)/include', file=makefile)
 
     # Generate configure.ac file that contains autogenerated information
+    # - The real work has already been done in the /dist-add/configure.ac.in file
     with open(P.join(opt.destination,'configure.ac'), 'w') as configure:
         configure_template = open(P.join(opt.destination,'configure.ac.in'), 'r')
         for line in configure_template:
@@ -418,6 +444,7 @@ if __name__ == '__main__':
         subprocess.check_call(cmd,cwd=opt.destination)
 
     # Remove requirement on CHOLMOD directory and remove UFConfig.h
+    # - Why?
     print(opt.destination)
     subprocess.check_call(['pwd'],cwd=opt.destination)
     cmd = ['sed','-i','-e','s#CHOLMOD/##g','include/BundleAdjust.h']
