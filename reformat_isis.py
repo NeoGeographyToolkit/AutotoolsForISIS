@@ -335,7 +335,18 @@ if __name__ == '__main__':
         if not dirs and not files:
             os.rmdir( root )
 
-    del header_dir
+
+    # Need to copy some more files from the inc dir that were not copied so far
+    inc_dir=P.join(opt.isisroot, 'inc')
+    headers = glob( P.join( inc_dir, '*.h') )
+    for src in headers:
+        dst = P.join(header_dir, os.path.basename(src))
+        if not os.path.exists(dst):
+            print("copy ", dst)
+            shutil.copyfile(src, dst)
+            
+
+    #del header_dir
 
     # So Writing Makefile.am from directory contents
     # It should look something like the following.
