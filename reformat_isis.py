@@ -342,7 +342,6 @@ if __name__ == '__main__':
     for src in headers:
         dst = P.join(header_dir, os.path.basename(src))
         if not os.path.exists(dst):
-            print("copy ", dst)
             shutil.copyfile(src, dst)
             
 
