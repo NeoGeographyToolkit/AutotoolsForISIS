@@ -1,0 +1,8 @@
+diff -crB ./src/Core/CorrelationMatrix/CorrelationMatrix.cpp ../isis_autotools_mod/src/Core/CorrelationMatrix/CorrelationMatrix.cpp
+*** ./src/Core/CorrelationMatrix/CorrelationMatrix.cpp	2012-06-14 15:31:09.000000000 -0700
+--- ../isis_autotools_mod/src/Core/CorrelationMatrix/CorrelationMatrix.cpp	2012-06-14 15:54:15.000000000 -0700
+***************
+*** 14,14 ****
+--- 14,15 ----
+  #include "SparseBlockMatrix.h"
++ #include <boost/numeric/ublas/matrix.hpp>
